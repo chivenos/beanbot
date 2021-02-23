@@ -14,11 +14,13 @@ from datetime import datetime
 import asyncio
 from themes import ReturnRandomTheme
 import psycopg2
+from psycopg2.sql import SQL
+from psycopg2.sql import Identifier
 
 
-token = YOUR TOKEN #Replace your token
+token = "" #Replace your token
 defaultPrefix = "bb"
-statusLoopInterval = 30
+statusLoopInterval = 120
 beanJamNotificationsLoopInterval = 60
 statusUpdateLoopInterval = 5
 embedColor = discord.Colour.green()
@@ -26,31 +28,34 @@ botCredits = "chivenos#5890\nDiscord Server: https://discord.gg/8jcNWqeQgQ"
 beanJamStartDate = [6,14,0] #week day, hour, minute (GMT)
 beanJamThemeDate = [6,13,40] #week day, hour, minute (GMT)
 beanJamReminderDate = [6,13,0] #week day, hour, minute (GMT)
+beanJamSubmitReminderDate = [6,17,0]  #week day, hour, minute (GMT)
 beanJamEndDate = [6,17,30]  #week day, hour, minute (GMT)
-beanJamRoleDate = [1,14,0] #week day, hour, minute (GMT)
-version = "v1.1"
+beanJamRoleDate = [2,14,0] #week day, hour, minute (GMT)
+version = "v1.2"
 winnerYellowColor = 0xe4b400
-chivenosUserid = "" #CHANGE
+chivenosUserid = ""
 
-db = "" #CHANGE
-dbUser = "" #CHANGE
-dbPassword = "" #CHANGE
-dbHost = "" #CHANGE
-dbPort = "" #CHANGE
+db = "" #Change
+dbUser = "" #Change
+dbPassword = "" #Change
+dbHost = "" #Change
+dbPort = "" #Change
 con = psycopg2.connect(database=db, user=dbUser, password=dbPassword, host=dbHost, port=dbPort)
+con.autocommit = True
 cur = con.cursor()
+#cur.execute(SQL().format(Identifier()), (, )) #USE THIS TO PREVENT SQL INJECTION
 print("--DATABASE OPENED--")
 
 
 #---------Database Functions---------
 def selectAllTable(table : str):
-    cur.execute(f"SELECT * FROM {table};")
+    cur.execute(SQL("SELECT * FROM '{}';").format(Identifier(table)))
     data = cur.fetchall()
 
     return data
 
 def selectDbByUserid(table : str, userid : str):
-    cur.execute(f"SELECT * FROM {table} WHERE userid = '{userid}';")
+    cur.execute(SQL("SELECT * FROM {} WHERE userid = %s;").format(Identifier(table)), (userid, ))
     data = cur.fetchall()
 
     if (data == []):
@@ -59,7 +64,7 @@ def selectDbByUserid(table : str, userid : str):
     return data[0]
 
 def selectDbByName(table : str, name : str):
-    cur.execute(f"SELECT * FROM {table} WHERE name = '{name}';")
+    cur.execute(SQL("SELECT * FROM {} WHERE name = %s;").format(Identifier(table)), (name, ))
     data = cur.fetchall()
 
     if (data == []):
@@ -68,7 +73,7 @@ def selectDbByName(table : str, name : str):
     return data[0]
 
 def selectDbByGuildid(table : str, guildid : str):
-    cur.execute(f"SELECT * FROM {table} WHERE guildid = '{guildid}';")
+    cur.execute(SQL("SELECT * FROM {} WHERE guildid = %s;").format(Identifier(table)), (guildid, ))
     data = cur.fetchall()
     if (data == []):
         return None
@@ -76,7 +81,7 @@ def selectDbByGuildid(table : str, guildid : str):
     return data[0]
 
 def selectDbByMsgid(table : str, msgid : str):
-    cur.execute(f"SELECT * FROM {table} WHERE msgid = '{msgid}';")
+    cur.execute(SQL("SELECT * FROM {} WHERE msgid = %s;").format(Identifier(table)), (msgid, ))
     data = cur.fetchall()
 
     if (data == []):
@@ -85,26 +90,26 @@ def selectDbByMsgid(table : str, msgid : str):
     return data[0]
 
 def deleteDbByGuildid(table : str, guildid : str):
-    cur.execute(f"DELETE FROM {table} WHERE guildid = '{guildid}';")
+    cur.execute(SQL("DELETE FROM {} WHERE guildid = %s;").format(Identifier(table)), (guildid, ))
     con.commit()
 
 def deleteDbByMsgid(table : str, msgid : str):
-    cur.execute(f"DELETE FROM {table} WHERE msgid = '{msgid}';")
+    cur.execute(SQL("DELETE FROM {} WHERE msgid = '%s;").format(Identifier(table)), (msgid, ))
     con.commit()
 
 def deleteDbByName(table : str, name : str):
-    cur.execute(f"DELETE FROM {table} WHERE name = '{name}';")
+    cur.execute(SQL("DELETE FROM {} WHERE name = %s;").format(Identifier(table)), (name, ))
     con.commit()
 
 def insertDbCoins(userid : str, coin : str):
-    cur.execute(f"INSERT INTO coins (userid, coin) VALUES ('{userid}', '{coin}');")
+    cur.execute("INSERT INTO coins (userid, coin) VALUES (%s, %s);", (userid, coin))
     con.commit()
 
 def updateDbCoins(userid : str, coin : str):
-    cur.execute(f"UPDATE coins SET coin = '{coin}' WHERE userid = '{userid}';")
+    cur.execute("UPDATE coins SET coin = %s WHERE userid = %s;", (coin, userid))
     con.commit()
 
-def increseCoins(userid, amount):
+def increaseCoins(userid, amount):
     data = selectDbByUserid("coins", str(userid))
     if(data == None):
         insertDbCoins(str(userid), "0")
@@ -127,49 +132,63 @@ def decreaseCoins(userid, amount, giveChivenos : bool = True):
     if(coins >= 0):
         updateDbCoins(str(userid), str(coins))
         if(giveChivenos):
-            increseCoins(chivenosUserid, amount)
+            increaseCoins(chivenosUserid, amount)
         return True
 
     return False
 
 def insertDbVariables(name : str, value : str):
-    cur.execute(f"INSERT INTO variables (name, value) VALUES ('{name}', '{value}');")
+    cur.execute("INSERT INTO variables (name, value) VALUES (%s, %s);", (name, value))
     con.commit()
 
 def updateDbVariables(name : str, value : str):
-    cur.execute(f"UPDATE variables SET value = '{value}' WHERE name = '{name}';")
+    cur.execute("UPDATE variables SET value = %s WHERE name = %s;", (value, name))
     con.commit()
 
-def insertDbReactiontorole(msgid : str, roleid : str, roleid1 : str = None, name : str = None):
-    cur.execute(f"INSERT INTO reactiontorole (msgid, roleid, roleid1, name) VALUES ('{msgid}', '{roleid}', '{roleid1}', '{name}');")
+def insertDbReactiontorole(msgid : str, roleid : str, roleid1 : str = None, name : str = None, coin : str = None, removable : bool = None):
+    insertInto = ""
+    vals = f""
+
+    for k,v in locals().items():
+        if(v != None and v != ""):
+            insertInto += k + ","
+            if(type(v) == str):
+                vals += f"'{v}'" + ","
+            else:
+                vals += f"{v}" + ","
+
+    insertInto = insertInto[:-1]
+    vals = vals[:-1]
+
+    cur.execute(f"INSERT INTO reactiontorole ({insertInto}) VALUES ({vals});")
     con.commit()
 
 def updateDbReactiontorole(msgid : str, roleid : str, roleid1 : str = None):
-    cur.execute(f"UPDATE reactiontorole SET roleid = '{roleid}', roleid1 = '{roleid1}' WHERE msgid = '{msgid}';")
+    cur.execute("UPDATE reactiontorole SET roleid = %s, roleid1 = %s WHERE msgid = %s;", (roleid, roleid1, msgid))
     con.commit()
 
 def insertDbAutorole(guildid : str, roleid : str):
-    cur.execute(f"INSERT INTO autorole (guildid, roleid) VALUES ('{guildid}', '{roleid}');")
+    cur.execute("INSERT INTO autorole (guildid, roleid) VALUES (%s, %s);", (guildid, roleid))
     con.commit()
 
 def updateDbAutorole(guildid : str, roleid : str):
-    cur.execute(f"UPDATE autorole SET roleid = {roleid} WHERE guildid = '{guildid}';")
+    cur.execute("UPDATE autorole SET roleid = %s WHERE guildid = %s;", (roleid, guildid))
     con.commit()
 
 def insertDbBeanjamnotificationchannels(guildid : str, channelid : str):
-    cur.execute(f"INSERT INTO beanjamnotificationchannels (guildid, channelid) VALUES ('{guildid}', '{channelid}');")
+    cur.execute("INSERT INTO beanjamnotificationchannels (guildid, channelid) VALUES (%s, %s);", (guildid, channelid))
     con.commit()
 
 def updateDbBeanjamnotificationchannels(guildid : str, channelid : str):
-    cur.execute(f"UPDATE beanjamnotificationchannels SET channelid = '{channelid}' WHERE guildid = '{guildid}';")
+    cur.execute("UPDATE beanjamnotificationchannels SET channelid = %s WHERE guildid = %s;", (channelid, guildid))
     con.commit()
 
 def insertDbPrefixes(guildid : str, prefix : str = "bb"):
-    cur.execute(f"INSERT INTO prefixes (guildid, prefix) VALUES ('{guildid}', '{prefix}');")
+    cur.execute("INSERT INTO prefixes (guildid, prefix) VALUES (%s, %s);", (guildid, prefix))
     con.commit()
 
 def updateDbPrefixes(guildid : str, prefix : str = "bb"):
-    cur.execute(f"UPDATE prefixes SET prefix = '{prefix}' WHERE guildid = '{guildid}';")
+    cur.execute("UPDATE prefixes SET prefix = %s WHERE guildid = %s;", (prefix, guildid))
     con.commit()
 
 #--------------------
@@ -192,7 +211,7 @@ def increaseBeanJamCount():
 
 intents = discord.Intents.default()
 intents.members = True
-client = commands.Bot(command_prefix=get_prefix, intents=intents, case_insensitive=True)
+client = commands.Bot(command_prefix=get_prefix, intents=intents, case_insensitive=True, help_command=None)
 client.beanJamCount = int(selectDbByName("variables", "beanJamCount")[1])
 status = ["Bean Jam #" + str(client.beanJamCount), "bbhelp | by Bean Devs"]
 iteratingBool = False
@@ -202,6 +221,7 @@ client.iteratingBool = iteratingBool
 checkMarkEmoji = "✅"
 coinsEmoji = ":coin:"
 beanBotInviteLink = "https://top.gg/bot/803206150572081152"
+allCommands = []
 
 
 @client.event
@@ -256,7 +276,7 @@ async def on_raw_reaction_add(payload):
                 if(role1 != None):
                     await user.add_roles(role1)
 
-            increseCoins(str(payload.user_id), int(data[3]))
+            increaseCoins(str(payload.user_id), int(data[3]))
 
 
 
@@ -281,6 +301,78 @@ async def on_raw_reaction_remove(payload):
 
 
 @client.command()
+async def help(ctx):
+    text = f"""**Available commands**\n
+                **help** - Sends this message\t
+                **about** - About BeanBot\t
+                **credits** - Credits of BeanBot\t
+                **version** - Version of BeanBot\t
+                **source** - Source of BeanBot\t
+                **invite** - Invite link of BeanBot\t
+                **latency** - Latency of BeanBot\t
+                **ban <member> [reason]** - Bans a member\t
+                **unban <user>** - Unbans user\t
+                **kick <member> [reason]** - Kicks a user\t
+                **giveRole <member> <role>** - Gives role to a member\t
+                **removeRole <member> <role>** - Removes role from a member\t
+                **changeNickname <member> <new nickname>** - Changes a members nickname\t
+                **clean [amount = 1]** - Cleans messages\t
+                **autoRole <role>** - Gives role automatically to new users\t
+                **disableAutoRole** - Disables auto role\t
+                **changePrefix [prefix = bb]** - Changes prefix\t
+                **time** - Sends time\t
+                **reactionToRole <role> [is removable after unreaction] [description]** - Sends a message and reacts {checkMarkEmoji}. If a member reacts the {checkMarkEmoji} BeanBot gives the role\t
+                **generateTheme** - Sends a random theme\t
+                **beanJamDate** - Sends Bean Jam date\t
+                **joinBeanJam** - Sends instructions to join BeanJam\t
+                **setBeanJamNotificationsChannel <channel>** - Sets the Bean Jam notifications channel and sends the notifications to this channel\t
+                **disableBeanJamNotifications** - Disables Bean Jam notifications\t
+                **coins** - Sends message's author's coin count\t
+                **sendCoins <member> <amount>** - Sends coins from message's author to a member
+                \n
+                Values in ***<angle brackets>*** have to be provided by you.\t
+                Values in ***[square brackets]*** are optional.
+            """
+
+    embed = discord.Embed(
+        colour = embedColor,
+        description = text
+    )
+    #f"Check your DM's!"
+    avatarUrl = GetAvatarLink(str(ctx.author.avatar_url))
+    embed.set_author(name=ctx.author.name,
+                     icon_url=avatarUrl)
+    
+    await ctx.send(embed=embed)
+
+
+@client.command()
+@commands.has_permissions(administrator=True) #User must have administrator permission
+async def reactionToRole(ctx, role0:discord.Role, removable : str = None, *, description : str = ""):
+    role0Id = str(role0.id)
+    if(removable.lower() == "true"):
+        removableVal = True
+    elif(removable.lower() == "false"):
+        removableVal = False
+    else:
+        removableVal = None
+        description = removable + " " + description
+
+    embed = discord.Embed(
+        colour=embedColor,
+        description=description,
+    )
+    avatarUrl = GetAvatarLink(str(ctx.author.avatar_url))
+    embed.set_author(name=ctx.author.name,
+                     icon_url=avatarUrl)
+    msg = await ctx.send(embed=embed)
+
+    await msg.add_reaction(checkMarkEmoji)
+
+    insertDbReactiontorole(str(msg.id), role0Id, None, None, None, removableVal)
+
+
+@client.command()
 async def invite(ctx):
     await ctx.send(beanBotInviteLink)
 
@@ -289,6 +381,7 @@ async def invite(ctx):
 async def coins(ctx):
     userid = ctx.author.id
     data = selectDbByUserid("coins", str(userid))
+
     if(data == None):
         insertDbCoins(str(userid), "0")
         coins = 0
@@ -307,13 +400,14 @@ async def coins(ctx):
 
 @client.command()
 @commands.has_permissions(administrator=True) #User must have administrator permission
+@commands.is_owner()
 async def giveCoins(ctx, member : discord.Member, amount : int):
     userid = str(member.id)
     data = selectDbByUserid("coins", userid)
     if(data == None):
         insertDbCoins(userid,"0")
 
-    increseCoins(userid, amount)
+    increaseCoins(userid, amount)
 
     embed = discord.Embed(
         colour=embedColor
@@ -327,6 +421,7 @@ async def giveCoins(ctx, member : discord.Member, amount : int):
 
 @client.command()
 @commands.has_permissions(administrator=True) #User must have administrator permission
+@commands.is_owner()
 async def takeCoins(ctx, member : discord.Member, amount : int):
     userid = str(member.id)
     data = selectDbByUserid("coins", userid)
@@ -367,7 +462,7 @@ async def sendCoins(ctx, member : discord.Member, amount : int):
         senderCoins = int(senderData[1])
 
     if(senderCoins - amount >= 0):
-        increseCoins(memberUserid, amount)
+        increaseCoins(memberUserid, amount)
         decreaseCoins(senderUserid, amount, False)
         sentence = f"{ctx.author.mention} sent {amount}{coinsEmoji} to {member.mention}."
     else:
@@ -668,7 +763,7 @@ async def changeNickname(ctx, member:discord.Member, newName):
     await ctx.send(embed=embed)
 
 
-""" #TOP.GG DOESN'T ACCEPT DM COMMANDS
+"""
 @client.command()
 async def dm(ctx,user:discord.User,*,msg):
     embedDM = discord.Embed(
@@ -732,6 +827,8 @@ async def on_command_error(ctx,error):
         embed = discord.Embed(
             colour=embedColor
         )
+        #msg = ctx.message.content[2:] #HEREEEEEEE
+        #letters = ""
 
         avatarUrl = GetAvatarLink(str(ctx.author.avatar_url))
         embed.set_author(name=ctx.author.name,
@@ -907,6 +1004,34 @@ async def bean_jam_notifications(): #Bean Jam notifications
                 await channel.send(role.mention)
                 await channel.send(embed=embed)
 
+        elif (now.weekday() == beanJamSubmitReminderDate[0] and now.hour == beanJamSubmitReminderDate[1] and now.minute == beanJamSubmitReminderDate[2]):  # bean jam submit remind
+            data = selectAllTable("beanjamnotificationchannels")
+
+            for i in data:
+                guildid = i[0]
+                channelid = i[1]
+                guild = client.get_guild(int(guildid))
+
+                role = get(guild.roles, name=f"#BeanJam{client.beanJamCount}")
+                if (role == None):
+                    role = await guild.create_role(name=f"#BeanJam{client.beanJamCount}")
+
+                channel = client.get_channel(int(channelid))
+
+                embed = discord.Embed(
+                    colour=embedColor
+                )
+
+                avatarUrl = GetAvatarLink(str(client.user.avatar_url))
+                embed.set_author(name=client.user.name,
+                                 icon_url=avatarUrl)
+                embed.add_field(name="Bean Jam Notification",
+                                value=f"30 minutes left to end of **Bean Jam #{client.beanJamCount}**.\nDo not forget to build and submit your game!",
+                                inline=False)
+
+                await channel.send(role.mention)
+                await channel.send(embed=embed)
+
         elif (now.weekday() == beanJamEndDate[0] and now.hour == beanJamEndDate[1] and now.minute == beanJamEndDate[2]):  # bean jam ended
             data = selectAllTable("beanjamnotificationchannels")
 
@@ -929,8 +1054,9 @@ async def bean_jam_notifications(): #Bean Jam notifications
                 embed.set_author(name=client.user.name,
                                  icon_url=avatarUrl)
                 embed.add_field(name="Bean Jam Notification",
-                                value=f"**Bean Jam #{client.beanJamCount}** is over! Thanks to who joined!", inline=False)
+                                value=f"**Bean Jam #{client.beanJamCount}** is over! Thanks to who joined!\nYou can rate submissions until tomorrow.", inline=False)
 
+                deleteDbByName("reactiontorole", f"{guildid}#BeanJam{client.beanJamCount}")
                 await channel.send(role.mention)
                 await channel.send(embed=embed)
 
@@ -967,8 +1093,7 @@ async def bean_jam_notifications(): #Bean Jam notifications
                 await channel.send(guild.default_role)
                 msg = await channel.send(embed=embed)
                 await msg.add_reaction(checkMarkEmoji)
-                deleteDbByName("reactiontorole", f"#BeanJam{client.beanJamCount - 1}")
-                insertDbReactiontorole(str(msg.id), str(role.id), str(role0.id), f"#BeanJam{client.beanJamCount}")
+                insertDbReactiontorole(str(msg.id), str(role.id), str(role0.id), f"{guildid}#BeanJam{client.beanJamCount}", "0", True)
 
         await asyncio.sleep(beanJamNotificationsLoopInterval)
 
@@ -1016,6 +1141,9 @@ async def disableBeanJamNotifications(ctx):
 
     await ctx.send(embed=embed)
 
+
+for command in client.commands:
+    allCommands.append(command.name)
 
 
 """#EMBED TEMPLATE
