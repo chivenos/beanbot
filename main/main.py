@@ -1,7 +1,7 @@
 #------------------------------------------------------------------------------------------#
 #Written by chivenos
 #Source code https://github.com/chivenos/beanbot
-#Discord chivenos#5890
+#Discord chivenos#4628
 #E-mail chivenosthedev@gmail.com
 #Feel free to use for any purpose
 #------------------------------------------------------------------------------------------#
