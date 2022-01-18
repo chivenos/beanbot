@@ -24,7 +24,7 @@ statusLoopInterval = 120
 beanJamNotificationsLoopInterval = 60
 statusUpdateLoopInterval = 5
 embedColor = discord.Colour.green()
-botCredits = "chivenos#5890\nDiscord Server: https://discord.gg/8jcNWqeQgQ"
+botCredits = "chivenos#4628\nDiscord Server: https://discord.gg/8jcNWqeQgQ"
 beanJamStartDate = [6,14,0] #week day, hour, minute (GMT)
 beanJamThemeDate = [6,13,40] #week day, hour, minute (GMT)
 beanJamReminderDate = [6,13,0] #week day, hour, minute (GMT)
@@ -75,6 +75,7 @@ def selectDbByName(table : str, name : str):
 def selectDbByGuildid(table : str, guildid : str):
     cur.execute(SQL("SELECT * FROM {} WHERE guildid = %s;").format(Identifier(table)), (guildid, ))
     data = cur.fetchall()
+
     if (data == []):
         return None
 
