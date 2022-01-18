@@ -49,7 +49,7 @@ print("--DATABASE OPENED--")
 
 #---------Database Functions---------
 def selectAllTable(table : str):
-    cur.execute(SQL("SELECT * FROM '{}';").format(Identifier(table)))
+    cur.execute(SQL("SELECT * FROM {};").format(Identifier(table)))
     data = cur.fetchall()
 
     return data
